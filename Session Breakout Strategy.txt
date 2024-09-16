@@ -1,0 +1,54 @@
+//@version=5
+strategy("Strategy", overlay = true)
+
+measureRange = input.session('2000-0200', 'Measure', group = "Time Settings")
+tradeRange = input.session('0200-0400', 'Trade', group = "Time Settings")
+
+// Define the available MAs
+maType = input.string("SMA", title="Type", options=["SMA", "EMA", "WMA", "RMA"], group = "MA Settings")
+// Define the Period of the MA
+maPeriod = input.int(14, title="Period", minval=1, group = "MA Settings")
+// Define the Offset of the MA
+maOffset = input.int(0, title = "Offset", group = "MA Settings")
+// Define the Parameters for Trading
+pullBack  = input.bool(false, title = "PullBack", group = "Parameters")
+// 8 = input.int(7, title = "Pips Amount", minval=1, group = "Parameters")
+slVal = input.int(7, title = "Stop Loss", minval=1, group = "Parameters")
+tpVal = input.int(7, title = "Take Profit", minval=1, group = "Parameters")
+
+measureIsAllowed = not na(time(timeframe.period, measureRange))
+tradeIsAllowed = not na(time(timeframe.period, tradeRange))
+
+var float refHigh = na
+refHigh := measureIsAllowed and not measureIsAllowed[1] ? high : measureIsAllowed and measureIsAllowed[1] ? high > refHigh ? high : refHigh : refHigh
+
+var float refLow = na
+refLow := measureIsAllowed and not measureIsAllowed[1] ? low : measureIsAllowed and measureIsAllowed[1] ? low < refLow ? low : refLow : refLow
+
+ma(source, period) =>
+    if maType == "SMA"
+        ta.sma(source, period)
+    else if maType == "EMA"
+        ta.ema(source, period)
+    else if maType == "WMA"
+        ta.wma(source, period)
+    else if maType == "RMA"
+        ta.rma(source, period)
+
+maValue = ma(close, maPeriod)
+longCondition = pullBack ? (((close > refHigh and close <= (refHigh + 8 * syminfo.mintick * 10)) or (close > (refHigh + 8 * syminfo.mintick * 10) and ta.crossover(close, maValue[maOffset]))) and tradeIsAllowed) : (close > refHigh and tradeIsAllowed)
+shortCondition = pullBack ? (((close < refLow and close >= (refLow - 8 * syminfo.mintick * 10)) or (close < (refLow - 8 * syminfo.mintick * 10) and ta.crossunder(close, maValue[maOffset]))) and tradeIsAllowed) : (close < refLow and tradeIsAllowed)
+
+if longCondition
+    strategy.entry("Entry Long", strategy.long)
+if shortCondition
+    strategy.entry("Entry Short", strategy.short)
+
+if (strategy.position_size > 0)
+    strategy.exit("Exit Long", limit = close + syminfo.mintick * 10 * tpVal, stop = close - slVal * syminfo.mintick * 10)
+if (strategy.position_size < 0)
+    strategy.exit("Exit Short", limit = close - syminfo.mintick * 10 * tpVal, stop = close + slVal * syminfo.mintick * 10)
+
+plot(refHigh, color = color.red, title = "High")
+plot(refLow, color = color.blue, title = "Low")
+plot(maValue[maOffset], color = color.green, title = "MA")
