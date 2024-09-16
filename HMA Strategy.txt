@@ -1,0 +1,50 @@
+//@version=5
+strategy("HMA Strategy", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.cash_per_contract, commission_value=2.8)
+
+// Define the Hull Moving Average
+hmaPeriod = input.int(22, "HMA Period")
+hmaValue = ta.hma(close, hmaPeriod)
+
+pointValue = 20
+stoploss=input.int(100, "Stop Loss")
+takeprofit=input.int(100, "Take Profit")
+
+user_timezone = input.string(defval="GMT-5", title="User Timezone")
+trading_start_time_hour = input.int(defval=8, title="Start of Trading Hours (Hour)")
+trading_start_time_minute = input.int(defval=31, title="Start of Trading Hours (Minute)")
+
+trading_end_time_hour = input.int(defval=16, title="End of Trading Hours (Hour)")
+trading_end_time_minute = input.int(defval=0, title="End of Trading Hours (Minute)")
+
+startTime = timestamp(user_timezone, year, month, dayofmonth, trading_start_time_hour, trading_start_time_minute)
+endTime = timestamp(user_timezone, year, month, dayofmonth, trading_end_time_hour, trading_end_time_minute)
+
+// Track the direction of the HMA
+hmaDirection = hmaValue > hmaValue[1] ? 1 :  -1
+
+// Entry conditions
+longCondition = hmaDirection == 1 and hmaDirection[1] == -1 and (time >= startTime and time <= endTime) 
+shortCondition = hmaDirection == -1 and hmaDirection[1] == 1 and (time >= startTime and time <= endTime)
+
+// Exit conditions
+if (time >= endTime)
+    strategy.close_all()
+
+// Execute trades
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+
+if (shortCondition)
+    strategy.entry("Short", strategy.short)
+    
+entryPrice = strategy.opentrades.entry_price(strategy.opentrades - 1)
+
+// Set stop loss and take profit
+if (strategy.position_size > 0) // Long position
+    strategy.exit("Take Profit/Stop Loss Long", "Long", limit= entryPrice + takeprofit / pointValue, stop=entryPrice - stoploss / pointValue)
+
+if (strategy.position_size < 0) // Short position
+    strategy.exit("Take Profit/Stop Loss Short", "Short", limit=entryPrice - takeprofit / pointValue, stop=entryPrice + stoploss / pointValue)
+
+// Plot the HMA on the chart
+plot(hmaValue, color=color.blue, title="HMA")
