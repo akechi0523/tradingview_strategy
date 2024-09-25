@@ -1,6 +1,12 @@
 //@version=5
 strategy("Directional Trading Strategy", overlay=true)
 
+// Define session in EST
+session = input.session('0800-1600', 'Session')
+
+// Check if current time is within trading hours
+withinTradingHours = not na(time(timeframe.period, session))
+
 // Initialize variables
 var string direction = na
 var float entryPrice = na
@@ -16,12 +22,12 @@ if (consecutiveDown)
     direction := "DOWN"
 
 // Manage trades based on direction
-if (direction == "DOWN" and close > open) // If direction is DOWN and we encounter an UP bar
+if (direction == "DOWN" and close > open) and withinTradingHours // If direction is DOWN and we encounter an UP bar
     entryPrice := close
     strategy.entry("Short", strategy.short)
     direction := na // Reset direction after entry
 
-if (direction == "UP" and close < open) // If direction is UP and we encounter a DOWN bar
+if (direction == "UP" and close < open) and withinTradingHours // If direction is UP and we encounter a DOWN bar
     entryPrice := close
     strategy.entry("Long", strategy.long)
     direction := na // Reset direction after entry
@@ -32,6 +38,10 @@ if (strategy.position_size < 0) // If in a short position
 
 if (strategy.position_size > 0) // If in a long position
     strategy.close("Long")
+
+// Exite all trades at 16:00 EST
+if not withinTradingHours
+    strategy.close_all()
 
 // Check for profitable trades
 if (strategy.position_size < 0 and close > entryPrice) // Short not profitable
