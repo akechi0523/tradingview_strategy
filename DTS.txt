@@ -1,0 +1,41 @@
+//@version=5
+strategy("Directional Trading Strategy", overlay=true)
+
+// Initialize variables
+var string direction = na
+var float entryPrice = na
+
+// Check for consecutive bars
+consecutiveUp = close > open and close[1] > open[1] and close[2] > open[2]
+consecutiveDown = close < open and close[1] < open[1] and close[2] < open[2]
+
+// Set direction based on consecutive bars
+if (consecutiveUp)
+    direction := "UP"
+if (consecutiveDown)
+    direction := "DOWN"
+
+// Manage trades based on direction
+if (direction == "DOWN" and close > open) // If direction is DOWN and we encounter an UP bar
+    entryPrice := close
+    strategy.entry("Short", strategy.short)
+    direction := na // Reset direction after entry
+
+if (direction == "UP" and close < open) // If direction is UP and we encounter a DOWN bar
+    entryPrice := close
+    strategy.entry("Long", strategy.long)
+    direction := na // Reset direction after entry
+
+
+if (strategy.position_size < 0) // If in a short position
+    strategy.close("Short")
+
+if (strategy.position_size > 0) // If in a long position
+    strategy.close("Long")
+
+// Check for profitable trades
+if (strategy.position_size < 0 and close > entryPrice) // Short not profitable
+    direction := na
+
+if (strategy.position_size > 0 and close < entryPrice) // Long not profitable
+    direction := na
