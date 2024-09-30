@@ -1,3 +1,4 @@
+
 //@version=5
 strategy("Directional Trading Strategy", overlay=true)
 
@@ -11,14 +12,17 @@ withinTradingHours = not na(time(timeframe.period, session))
 var string direction = na
 var float entryPrice = na
 
+rangereq = input.int(17, "rangereq")
+BTSExtendedTrading = input.bool(true, 'BTSExtendedTrading')
+
 // Check for consecutive bars
-consecutiveUp = close > open and close[1] > open[1] and close[2] > open[2]
-consecutiveDown = close < open and close[1] < open[1] and close[2] < open[2]
+consecutiveUp = close > open and close[1] > open[1] and close[2] > open[2] and close[3] > open[3] and close - close[3] > rangereq
+consecutiveDown = close < open and close[1] < open[1] and close[2] < open[2] and close[3] < open[3] and close[3] - close > rangereq
 
 // Set direction based on consecutive bars
-if (consecutiveUp)
-    direction := "UP"
-if (consecutiveDown)
+if ((consecutiveUp) or (strategy.position_size > 0 and close > entryPrice)) and BTSExtendedTrading
+    direction := "UP" 
+if ((consecutiveDown) or (strategy.position_size < 0 and close < entryPrice)) and BTSExtendedTrading
     direction := "DOWN"
 
 // Manage trades based on direction
@@ -31,7 +35,6 @@ if (direction == "UP" and close < open) and withinTradingHours // If direction i
     entryPrice := close
     strategy.entry("Long", strategy.long)
     direction := na // Reset direction after entry
-
 
 if (strategy.position_size < 0) // If in a short position
     strategy.close("Short")
